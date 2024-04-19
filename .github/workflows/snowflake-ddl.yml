@@ -1,43 +1,35 @@
-name: snowflake-ddl.yml
+name: Vérification des objets Snowflake dans les fichiers SQL
 
-# Controls when the action will run. 
 on:
   push:
     branches:
-      - main
-    paths:
-      - 'migrations/**'
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+      - '*'
 
 jobs:
-  deploy-snowflake-changes-job:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: Checkout repository
+      - name: Checkout du code
         uses: actions/checkout@v2
 
-      - name: Use Python 3.8.x
-        uses: actions/setup-python@v2.2.1
-        with:
-          python-version: 3.8.x
-
-      - name: Run schemachange
-        env:
-          SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
-          SF_USERNAME: ${{ secrets.SF_USERNAME }}
-          SF_ROLE: ${{ secrets.SF_ROLE }}
-          SF_WAREHOUSE: ${{ secrets.SF_WAREHOUSE }}
-          SF_DATABASE: ${{ secrets.SF_DATABASE }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SF_PASSWORD }}
+      - name: Installer les dépendances
         run: |
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          python --version
-          echo "Step 1: Installing schemachange"
-          pip install schemachange
-          
-          echo "Step 2: Running schemachange"
-          schemachange -f $GITHUB_WORKSPACE/migrations -a $SF_ACCOUNT -u $SF_USERNAME -r $SF_ROLE -w $SF_WAREHOUSE -d $SF_DATABASE -c $SF_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
+          sudo apt-get install -y python3-pip
+          pip3 install snowflake-connector-python
+
+      - name: Vérification des fichiers SQL
+        run: |
+          for file in $(find . -type f -name '*.sql'); do
+            echo "Vérification des objets Snowflake dans le fichier $file"
+            # Récupération des créations d'objets
+            creations=$(grep -E "CREATE\s+(OR\s+REPLACE\s+)?(TABLE|VIEW|PROCEDURE|FUNCTION|SEQUENCE)\s+[A-Za-z0-9_]+\s*\(?" $file)
+            # Affichage des résultats
+            if [[ -n "$creations" ]]; then
+              echo "$creations"
+              echo "Le fichier $file contient des objets Snowflake valides."
+            else
+              echo "ERREUR: Le fichier $file ne contient pas d'objets Snowflake valides."
+              exit 1
+            fi
+          done
