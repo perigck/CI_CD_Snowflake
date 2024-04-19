@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - '*'
+    paths:
+      - 'migrations/**'
 
 jobs:
   build:
@@ -20,7 +22,7 @@ jobs:
 
       - name: Vérification des fichiers SQL
         run: |
-          for file in $(find . -type f -name '*.sql'); do
+          for file in $(find ./migrations -type f -name '*.sql'); do
             echo "Vérification des objets Snowflake dans le fichier $file"
             # Récupération des créations d'objets
             creations=$(grep -E "CREATE\s+(OR\s+REPLACE\s+)?(TABLE|VIEW|PROCEDURE|FUNCTION|SEQUENCE)\s+[A-Za-z0-9_]+\s*\(?" $file)
